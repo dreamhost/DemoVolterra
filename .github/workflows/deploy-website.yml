@@ -1,0 +1,114 @@
+name: Deploy Website
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: ${{ vars.S3_BUCKET_NAME }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+jobs:
+  deploy:
+    name: Deploy Website
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate staging subdomain
+      id: sub
+      run: |
+        h=$(printf '%s' "$GITHUB_REPOSITORY" | sha1sum | cut -c1-10)
+        sub="staging-${h}"
+        echo "SUBDOMAIN=$sub" >> "$GITHUB_ENV"
+        echo "Derived subdomain: $sub"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - run: |
+        npm install
+        npm run build
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        role-to-assume: ${{ env.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Verify CloudFront
+      run: |
+        set -e
+        [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ] && \
+            { echo "::error::CLOUDFRONT_DISTRIBUTION_ID missing"; exit 1; }
+
+        aws cloudfront get-distribution --id "$CLOUDFRONT_DISTRIBUTION_ID" \
+          --query 'Distribution.Status' --output text | \
+          grep -qx Deployed || { echo "::error::Distribution not Deployed"; exit 1; }
+        echo "✓ CloudFront distribution ready"
+
+    - name: Deploy to S3
+      run: |
+        set -e
+        BUILD_DIR=out
+        STATIC_CACHE="max-age=31536000,public"
+        HTML_CACHE="max-age=0,no-cache,no-store,must-revalidate"
+
+        echo "Uploading static assets…"
+        aws s3 sync "$BUILD_DIR" "s3://$S3_BUCKET/content/$SUBDOMAIN/" \
+          --delete \
+          --cache-control "$STATIC_CACHE" \
+          --exclude '*.html' --exclude '*.json'
+
+        echo "Uploading HTML / JSON…"
+        aws s3 sync "$BUILD_DIR" "s3://$S3_BUCKET/content/$SUBDOMAIN/" \
+          --cache-control "$HTML_CACHE" \
+          --include '*.html' --include '*.json'
+
+    - name: Invalidate CloudFront
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+          --paths '/*'
+        echo "✓ Invalidation started"
+
+    - name: Publish ./out → build-artifacts branch
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -e
+        BUILD_DIR=out
+        BRANCH=build-artifacts
+
+        git config user.name  "AI Builder"
+        git config user.email "ai-builder@dreamhosters.ai"
+
+        # Store build artifacts before cleaning
+        cp -R "$BUILD_DIR" /tmp/build-backup
+
+        git checkout --orphan "$BRANCH"
+        git rm -rf . > /dev/null 2>&1 || true
+        git clean -fdx > /dev/null 2>&1
+
+        cp -R /tmp/build-backup ./out
+        git add .
+        git commit -m "build ${{ github.ref_name }}"
+        git push --force --quiet origin "$BRANCH"
+
+    - name: Output deployment info
+      run: |
+        echo "::notice::Website available at https://${SUBDOMAIN}.dreamhosters.ai"
