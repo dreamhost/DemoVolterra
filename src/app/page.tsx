@@ -1,23 +1,23 @@
 import { Header } from "@src/components/layout/Header";
 import { Footer } from "@src/components/layout/Footer";
-import { Hero } from "@src/components/sections/Hero";
-import { Features } from "@src/components/sections/Features";
-import { Testimonials } from "@src/components/sections/Testimonials";
-import { Pricing } from "@src/components/sections/Pricing";
-import { Contact } from "@src/components/sections/Contact";
+import { ArtistHero } from "@src/components/sections/ArtistHero";
+import { Gallery } from "@src/components/sections/Gallery";
+import { ArtistStory } from "@src/components/sections/ArtistStory";
+import { UpcomingExhibitions } from "@src/components/sections/UpcomingExhibitions";
+import { ArtistContact } from "@src/components/sections/ArtistContact";
 
 export default function Home() {
   return (
-   <div data-editor-tag="OzkmGY064o"  className="flex min-h-screen flex-col">
-     <Header data-editor-tag="9KcQxq1Mp7"  />
-     <main data-editor-tag="F08x6hSva9"  className="flex-1">
-       <Hero data-editor-tag="FceBWqKqHB"  />
-       <Features data-editor-tag="bomYjRhuzW"  />
-       <Testimonials data-editor-tag="mwDoxxfkiA"  />
-       <Pricing data-editor-tag="lxcepMAyom"  />
-       <Contact data-editor-tag="TSbRNKFCUS"  />
+   <div data-editor-tag="Sii1IOOwUi"  className="flex min-h-screen flex-col">
+     <Header data-editor-tag="qRojezyWYG"  />
+     <main data-editor-tag="bxGYQbPrU2"  className="flex-1">
+       <ArtistHero data-editor-tag="x7jFUkLghy"  />
+       <Gallery data-editor-tag="ytsORvSXjy"  />
+       <ArtistStory data-editor-tag="RiQYYFPoV8"  />
+       <UpcomingExhibitions data-editor-tag="afv5h772cV"  />
+       <ArtistContact data-editor-tag="dmwWqGmUFr"  />
       </main>
-     <Footer data-editor-tag="KG994gFKe1"  />
+     <Footer data-editor-tag="Gjf8eCjDb1"  />
     </div>
   );
 }
